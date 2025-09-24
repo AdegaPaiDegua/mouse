@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Mouse Remoto</title>
+    <meta name="theme-color" content="#3F51B5">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+        }
+
+        .header {
+            background: #3F51B5;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 1.2em;
+            font-weight: 500;
+        }
+
+        .install-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            cursor: pointer;
+        }
+
+        .connection-panel {
+            padding: 15px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            border-color: #3F51B5;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-connect {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-disconnect {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-connect:disabled, .btn-disconnect:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            font-weight: 600;
+        }
+
+        .status.connected {
+            color: #4CAF50;
+        }
+
+        .status.disconnected {
+            color: #f44336;
+        }
+
+        .touch-area {
+            flex: 1;
+            background: #ecf0f1;
+            position: relative;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .touch-feedback {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(63, 81, 181, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 15px;
+            background: #f5f5f5;
+        }
+
+        .control-btn {
+            background: #3F51B5;
+            color: white;
+            padding: 15px;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .floating-minimize {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #3F51B5;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: none;
+        }
+
+        /* Modo minimizado */
+        .minimized .app-container {
+            transform: translateY(calc(100% - 80px));
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .minimized .floating-minimize {
+            display: block;
+        }
+
+        @media (max-width: 500px) {
+            .app-container {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="floating-minimize" onclick="maximizeApp()">↑</button>
+
+    <div class="app-container">
+        <div class="header">
+            <h1>🎮 Controle Mouse Remoto</h1>
+            <button class="install-btn" onclick="installPWA()">Instalar</button>
+        </div>
+
+        <div class="connection-panel">
+            <div class="input-group">
+                <input type="text" id="ipInput" placeholder="IP do PC (ex: 192.168.1.100)" value="192.168.">
+            </div>
+            <div class="input-group">
+                <button class="btn-connect" onclick="connect()" id="connectBtn">Conectar</button>
+                <button class="btn-disconnect" onclick="disconnect()" id="disconnectBtn" disabled>Desconectar</button>
+            </div>
+        </div>
+
+        <div class="status disconnected" id="statusText">● Desconectado</div>
+
+        <div class="touch-area" id="touchArea">
+            <div class="touch-feedback" id="touchFeedback"></div>
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #7f8c8d;">
+                <div style="font-size: 24px; margin-bottom: 10px;">🖱️</div>
+                <div>Toque e arraste para mover o mouse</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" onclick="sendClick('LEFT')">Clique Esquerdo</button>
+            <button class="control-btn" onclick="sendClick('RIGHT')">Clique Direito</button>
+            <button class="control-btn" onclick="sendScrollUp()">Scroll ↑</button>
+            <button class="control-btn" onclick="sendScrollDown()">Scroll ↓</button>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais
+        let ws = null;
+        let isConnected = false;
+        let isDragging = false;
+        let startX, startY;
+        let deferredPrompt = null;
+
+        // Elementos DOM
+        const ipInput = document.getElementById('ipInput');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusText = document.getElementById('statusText');
+        const touchArea = document.getElementById('touchArea');
+        const touchFeedback = document.getElementById('touchFeedback');
+
+        // Instalação PWA
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('PWA instalado');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        }
+
+        // Minimizar/Maximizar
+        function minimizeApp() {
+            document.body.classList.add('minimized');
+        }
+
+        function maximizeApp() {
+            document.body.classList.remove('minimized');
+        }
+
+        // Arraste pelo header para minimizar
+        let startYPos = 0;
+        const header = document.querySelector('.header');
+        
+        header.addEventListener('touchstart', (e) => {
+            startYPos = e.touches[0].clientY;
+        });
+
+        header.addEventListener('touchmove', (e) => {
+            const currentY = e.touches[0].clientY;
+            const diff = currentY - startYPos;
+            
+            if (diff > 50) { // Arrastou para baixo
+                minimizeApp();
+            }
+        });
+
+        // Conexão WebSocket
+        function connect() {
+            const ip = ipInput.value.trim();
+            if (!ip) {
+                alert('Digite o IP do seu PC');
+                return;
+            }
+
+            try {
+                ws = new WebSocket(`ws://${ip}:8080`);
+                
+                ws.onopen = () => {
+                    isConnected = true;
+                    updateUI();
+                    showFeedback('Conectado!', 'success');
+                };
+                
+                ws.onmessage = (event) => {
+                    console.log('Servidor:', event.data);
+                };
+                
+                ws.onerror = (error) => {
+                    showFeedback('Erro na conexão. Verifique o IP e servidor.', 'error');
+                    console.error('WebSocket error:', error);
+                };
+                
+                ws.onclose = () => {
+                    isConnected = false;
+                    updateUI();
+                    showFeedback('Conexão fechada', 'warning');
+                };
+                
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            isConnected = false;
+            updateUI();
+        }
+
+        function sendCommand(command) {
+            if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(command);
+            }
+        }
+
+        function sendClick(button) {
+            sendCommand(`CLICK:${button}`);
+            showFeedback(`Clique ${button.toLowerCase()}`, 'info');
+        }
+
+        function sendScrollUp() {
+            sendCommand(`SCROLL:UP`);
+        }
+
+        function sendScrollDown() {
+            sendCommand(`SCROLL:DOWN`);
+        }
+
+        // Controle por toque
+        touchArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!isConnected) return;
+
+            const touch = e.touches[0];
+            const rect = touchArea.getBoundingClientRect();
+            startX = touch.clientX - rect.left;
+            startY = touch.clientY - rect.top;
+
+            // Feedback visual
+            touchFeedback.style.left = startX + 'px';
+            touchFeedback.style.top = startY + 'px';
+            touchFeedback.style.opacity = '1';
+
+            sendCommand(`DRAG:${startX}:${startY}:true`);
+            isDragging = true;
+        });
+
+        touchArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!isConnected || !isDragging) return;
+
+            const touch = e.touches[0];
+            const rect = touchArea.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            // Atualiza feedback visual
+            touchFeedback.style.left = x + 'px';
+            touchFeedback.style.top = y + 'px';
+
+            sendCommand(`MOVE:${x}:${y}`);
+        });
+
+        touchArea.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (!isConnected) return;
+
+            // Esconde feedback
+            touchFeedback.style.opacity = '0';
+
+            if (isDragging) {
+                sendCommand(`DRAG:0:0:false`);
+                
+                // Detecta clique (toque rápido sem arraste)
+                const touch = e.changedTouches[0];
+                const rect = touchArea.getBoundingClientRect();
+                const endX = touch.clientX - rect.left;
+                const endY = touch.clientY - rect.top;
+                
+                if (Math.abs(endX - startX) < 15 && Math.abs(endY - startY) < 15) {
+                    sendClick('LEFT');
+                }
+                
+                isDragging = false;
+            }
+        });
+
+        // Previne comportamentos padrão indesejados
+        document.addEventListener('touchmove', (e) => {
+            if (e.target === touchArea) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('gesturechange', (e) => e.preventDefault());
+        document.addEventListener('gestureend', (e) => e.preventDefault());
+
+        function updateUI() {
+            connectBtn.disabled = isConnected;
+            disconnectBtn.disabled = !isConnected;
+            
+            statusText.textContent = isConnected ? '● Conectado' : '● Desconectado';
+            statusText.className = isConnected ? 'status connected' : 'status disconnected';
+            
+            touchArea.style.background = isConnected ? '#d5dbdb' : '#ecf0f1';
+        }
+
+        function showFeedback(message, type) {
+            // Poderia adicionar um toast notification aqui
+            console.log(`${type}: ${message}`);
+        }
+
+        // Service Worker para funcionar offline
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => console.log('SW registered'))
+                .catch(error => console.log('SW registration failed'));
+        }
+
+        updateUI();
+    </script>
+</body>
+</html>

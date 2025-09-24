@@ -1,0 +1,22 @@
+{
+    "name": "Controle Mouse Remoto",
+    "short_name": "MouseRemoto",
+    "description": "Controle o mouse do PC pelo tablet",
+    "start_url": "/mouse-control.html",
+    "display": "standalone",
+    "background_color": "#3F51B5",
+    "theme_color": "#3F51B5",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
